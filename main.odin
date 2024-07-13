@@ -28,6 +28,11 @@ restart :: proc() {
 	started = false
 }
 
+reflect_ball :: proc(dir, normal: rl.Vector2) -> rl.Vector2 {
+	new_direction := linalg.reflect(dir, linalg.normalize(normal))
+	return linalg.normalize(new_direction)
+}
+
 main :: proc() {
 	fmt.println("hello world")
 	rl.SetConfigFlags({.VSYNC_HINT})
@@ -59,6 +64,20 @@ main :: proc() {
 
 		previous_ball_pos := ball_pos
 		ball_pos += ball_dir * BALL_SPEED * dt
+
+		if ball_pos.x + BALL_RADIUS > DRAW_SIZE {
+			ball_pos.x = DRAW_SIZE - BALL_RADIUS
+			ball_dir = reflect_ball(ball_dir, {-1, 0})
+		}
+		if ball_pos.x - BALL_RADIUS < 0 {
+			ball_pos.x = 0 + BALL_RADIUS
+			ball_dir = reflect_ball(ball_dir, {1, 0})
+		}
+		if ball_pos.y - BALL_RADIUS < 0 {
+			ball_pos.y = 0 + BALL_RADIUS
+			ball_dir = reflect_ball(ball_dir, {0, 1})
+		}
+
 		paddle_move_velocity: f32
 
 		if rl.IsKeyDown(.LEFT) {
@@ -66,6 +85,9 @@ main :: proc() {
 		}
 		if rl.IsKeyDown(.RIGHT) {
 			paddle_move_velocity += PADDLE_SPEED
+		}
+		if rl.IsKeyDown(.R) {
+			restart()
 		}
 
 		paddle_pos.x += paddle_move_velocity * dt
@@ -94,9 +116,7 @@ main :: proc() {
 			}
 
 			if collision_normal != 0 {
-				ball_dir = linalg.normalize(
-					linalg.reflect(ball_dir, linalg.normalize(collision_normal)),
-				)
+				ball_dir = reflect_ball(ball_dir, collision_normal)
 			}
 		}
 
