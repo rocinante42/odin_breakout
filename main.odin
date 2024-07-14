@@ -20,6 +20,7 @@ ball_pos: rl.Vector2
 ball_dir: rl.Vector2
 camera: rl.Camera2D
 started := false
+pause := false
 
 restart :: proc() {
 	x: f32 = DRAW_SIZE / 2 - PADDLE_WIDTH / 2
@@ -45,80 +46,95 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
+		paddle_rect := rl.Rectangle{paddle_pos.x, paddle_pos.y, PADDLE_WIDTH, PADDLE_HEIGHT}
 		dt: f32
-		if !started {
-			ball_pos = {
-				DRAW_SIZE / 2 + f32(math.cos(rl.GetTime()) * DRAW_SIZE / 2.5),
-				BALL_START_Y,
-			}
-
-			if rl.IsKeyPressed(.SPACE) {
-				paddle_middle := rl.Vector2{paddle_pos.x + PADDLE_WIDTH / 2, paddle_pos.y}
-				ball_to_paddle := paddle_middle - ball_pos
-				ball_dir = linalg.normalize0(ball_to_paddle)
-				started = true
-			}
-		} else {
-			dt = rl.GetFrameTime()
-		}
-
-		previous_ball_pos := ball_pos
-		ball_pos += ball_dir * BALL_SPEED * dt
-
-		if ball_pos.x + BALL_RADIUS > DRAW_SIZE {
-			ball_pos.x = DRAW_SIZE - BALL_RADIUS
-			ball_dir = reflect_ball(ball_dir, {-1, 0})
-		}
-		if ball_pos.x - BALL_RADIUS < 0 {
-			ball_pos.x = 0 + BALL_RADIUS
-			ball_dir = reflect_ball(ball_dir, {1, 0})
-		}
-		if ball_pos.y - BALL_RADIUS < 0 {
-			ball_pos.y = 0 + BALL_RADIUS
-			ball_dir = reflect_ball(ball_dir, {0, 1})
-		}
-
-		paddle_move_velocity: f32
-
-		if rl.IsKeyDown(.LEFT) {
-			paddle_move_velocity -= PADDLE_SPEED
-		}
-		if rl.IsKeyDown(.RIGHT) {
-			paddle_move_velocity += PADDLE_SPEED
+		if rl.IsKeyReleased(.P) {
+			pause = !pause
 		}
 		if rl.IsKeyDown(.R) {
+			pause = false
 			restart()
 		}
+		if !pause {
+			if !started {
+				ball_pos = {
+					DRAW_SIZE / 2 + f32(math.cos(rl.GetTime()) * DRAW_SIZE / 2.5),
+					BALL_START_Y,
+				}
 
-		paddle_pos.x += paddle_move_velocity * dt
-		paddle_pos.x = clamp(paddle_pos.x, 0, DRAW_SIZE - PADDLE_WIDTH)
-		paddle_rect := rl.Rectangle{paddle_pos.x, paddle_pos.y, PADDLE_WIDTH, PADDLE_HEIGHT}
-
-		if rl.CheckCollisionCircleRec(ball_pos, BALL_RADIUS, paddle_rect) {
-			collision_normal: rl.Vector2
-
-			if previous_ball_pos.y < paddle_rect.y + paddle_rect.height {
-				collision_normal += {0, -1}
-				ball_pos.y = paddle_rect.y - BALL_RADIUS
+				if rl.IsKeyPressed(.SPACE) {
+					paddle_middle := rl.Vector2{paddle_pos.x + PADDLE_WIDTH / 2, paddle_pos.y}
+					ball_to_paddle := paddle_middle - ball_pos
+					ball_dir = linalg.normalize0(ball_to_paddle)
+					started = true
+				}
+			} else {
+				dt = rl.GetFrameTime()
 			}
 
-			if previous_ball_pos.y > paddle_rect.y + paddle_rect.height {
-				collision_normal += {0, 1}
-				ball_pos.y = paddle_rect.y + paddle_rect.height + BALL_RADIUS
+			previous_ball_pos := ball_pos
+			ball_pos += ball_dir * BALL_SPEED * dt
+
+			if ball_pos.x + BALL_RADIUS > DRAW_SIZE {
+				ball_pos.x = DRAW_SIZE - BALL_RADIUS
+				ball_dir = reflect_ball(ball_dir, {-1, 0})
+			}
+			if ball_pos.x - BALL_RADIUS < 0 {
+				ball_pos.x = 0 + BALL_RADIUS
+				ball_dir = reflect_ball(ball_dir, {1, 0})
+			}
+			if ball_pos.y - BALL_RADIUS < 0 {
+				ball_pos.y = 0 + BALL_RADIUS
+				ball_dir = reflect_ball(ball_dir, {0, 1})
 			}
 
-			if previous_ball_pos.x < paddle_rect.x {
-				collision_normal += {-1, 0}
+			paddle_move_velocity: f32
+
+			if rl.IsKeyDown(.LEFT) {
+				paddle_move_velocity -= PADDLE_SPEED
+			}
+			if rl.IsKeyDown(.RIGHT) {
+				paddle_move_velocity += PADDLE_SPEED
 			}
 
-			if previous_ball_pos.x > paddle_rect.x + paddle_rect.width {
-				collision_normal += {1, 0}
-			}
 
-			if collision_normal != 0 {
-				ball_dir = reflect_ball(ball_dir, collision_normal)
+			paddle_pos.x += paddle_move_velocity * dt
+			paddle_pos.x = clamp(paddle_pos.x, 0, DRAW_SIZE - PADDLE_WIDTH)
+			paddle_rect = rl.Rectangle{paddle_pos.x, paddle_pos.y, PADDLE_WIDTH, PADDLE_HEIGHT}
+
+			if rl.CheckCollisionCircleRec(ball_pos, BALL_RADIUS, paddle_rect) {
+				collision_normal: rl.Vector2
+
+				if previous_ball_pos.y < paddle_rect.y + paddle_rect.height {
+					collision_normal += {0, -1}
+					ball_pos.y = paddle_rect.y - BALL_RADIUS
+				}
+
+				if previous_ball_pos.y > paddle_rect.y + paddle_rect.height {
+					collision_normal += {0, 1}
+					ball_pos.y = paddle_rect.y + paddle_rect.height + BALL_RADIUS
+				}
+
+				if previous_ball_pos.x < paddle_rect.x {
+					collision_normal += {-1, 0}
+				}
+
+				if previous_ball_pos.x > paddle_rect.x + paddle_rect.width {
+					collision_normal += {1, 0}
+				}
+
+				if collision_normal != 0 {
+					ball_dir = reflect_ball(ball_dir, collision_normal)
+				}
+
+
 			}
-		}
+			// if ball is out of bounds downards, restart the game for now:
+			if ball_pos.y + BALL_RADIUS > DRAW_SIZE {
+				restart()
+			}
+		} // end of Pause block
+
 
 		//-- begin draw cycle ---------------------------
 		rl.BeginDrawing()
